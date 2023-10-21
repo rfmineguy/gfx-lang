@@ -1,9 +1,0 @@
-settings () {
-  outFile = "image.png"
-  width = 600
-  height = 600
-}
-run () {
-  fill(42 53 255 43)
-  circle(4 5 180 0xFF2D00BC) 
-}

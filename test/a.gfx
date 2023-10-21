@@ -1,0 +1,10 @@
+settings () {
+  outFile = "image.png"
+  width = 600
+  height = 600
+}
+run () {
+  fill(0xFF454545)
+  circle(300 300 180 0xFF2D00BC)
+  circle(300 300 90  0xFF459832)
+}

@@ -128,16 +128,16 @@ codeGenerator code = boilerplateInclude ++ varDeclsGenerator vars ++ concatMap p
   where vars = toList (fromList (concatMap extractVariablesProc code))
 
 boilerplateInclude :: String
-boilerplateInclude = "#define OLIVEC_IMPLEMENTATION\n#include \"olive.c\"\nOlivec_Canvas oc;\n"
+boilerplateInclude = "#define OLIVEC_IMPLEMENTATION\n" ++ "#include \"olive.c\"\n" ++ "#include <stdlib.h>\n" ++ "#define STB_IMAGE_WRITE_IMPLEMENTATION\n" ++ "#include \"stb_image_write.h\"\n" ++  "Olivec_Canvas oc;\nuint32_t *pixels;\n"
 
 boilerplateMain :: String
-boilerplateMain =  "int main(void) {\n" ++ boilerplateOlivec ++ "" ++ boilerplateOlivecSave ++ "\treturn 0;\n }"
+boilerplateMain =  "int main(void) {\n" ++ boilerplateOlivec ++ "\trun();\n" ++ boilerplateOlivecSave ++ "\treturn 0;\n }"
 
 boilerplateOlivec :: String
-boilerplateOlivec = "\tsettings();\n" ++ "\toc = olivc_canvas(pixels, width, height, width);\n"
+boilerplateOlivec = "\tsettings();\n" ++ "\tpixels = malloc(width * height * sizeof(uint32_t));\n" ++  "\toc = olivec_canvas(pixels, width, height, width);\n"
 
 boilerplateOlivecSave :: String
-boilerplateOlivecSave = "\tif (!stbi_write_png(outFile, width, height, 4, pixels, sizeof(uint32_t)*width)) { return 1; }\n"
+boilerplateOlivecSave = "\tif (!stbi_write_png(outFile, width, height, 4, pixels, sizeof(uint32_t)*width)) { return 1; }\n" ++ "\tfree(pixels);\n"
 
 procedureGenerator :: Procedure -> String
 procedureGenerator (Section s p stmts) = "void " ++ s ++ "(" ++ paramsGenerator p ++ ")" ++ "{\n" ++ statementsGenerator stmts ++ "}\n"
@@ -197,16 +197,18 @@ main = run =<< execParser opts
 
 run :: Options -> IO ()
 run (Options s o) = do
-  putStrLn $ "{InputFile: " ++ s ++ " ; OutputFile: " ++ o ++ "}"
   handle <- openFile s ReadMode
   contents <- hGetContents handle
   let c = parse codeParser "" contents
   case c of
     Left e -> print e
     Right code -> do {
-      let variables = toList (fromList (concatMap extractVariablesProc code))
-    ; let decl = varDeclsGenerator variables
-    ; print ("Variables = ", variables, " => {" ++ decl ++ "}")
+    --   let variables = toList (fromList (concatMap extractVariablesProc code))
+    -- ; let decl = varDeclsGenerator variables
+    -- ; print ("Variables = ", variables, " => {" ++ decl ++ "}")
     ; writeFile o (codeGenerator code)
+    ; putStrLn "This \"language\" requires the use of Tsoding's library OliveC and stbi_image."
+    ; putStrLn "To get \"OliveC\", run \"wget https://raw.githubusercontent.com/tsoding/olive.c/master/olive.c\""
+    ; putStrLn "To get \"stbi_image_write\", run \"wget https://raw.githubusercontent.com/nothings/stb/master/stb_image_write.h\""
     }
-  print c
+  -- print c
