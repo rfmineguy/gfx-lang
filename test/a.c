@@ -13,10 +13,14 @@ void settings(){
 	width = 600;
 	height = 600;
 }
+void drawPlayer(){
+}
 void run(){
 	olivec_fill(oc,4282729797);
 	olivec_circle(oc,300,300,180,4281139388);
 	olivec_circle(oc,300,300,90,4282751026);
+	olivec_rect(oc,30,30,50,50,4288234003);
+	olivec_line(oc,20,40,400,300,4283638102);
 }
 int main(void) {
 	settings();
