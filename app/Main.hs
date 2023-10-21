@@ -37,10 +37,13 @@ import System.IO
 import Data.Set
 
 --- AST Decl
-type Var = String
-data Param = IntParam Int | StringParam String
+data VarType = ConstCharP | Int
+  deriving (Eq, Show, Ord)
+data Var = Variable VarType String
+  deriving (Eq, Show, Ord)
+data Param = IntParam Int
   deriving (Eq, Show)
-data Statement = Assign Var Int | Call String [Param] 
+data Statement = AssignInt Var Int | AssignStr Var String | Call String [Param] 
   deriving (Eq, Show)
 data Procedure = Section String [Param] [Statement] 
   deriving (Eq, Show)
@@ -49,20 +52,47 @@ type Code = [Procedure]
 --
 --- Parsing
 --
-assignParser :: P.Parser Statement
-assignParser = Assign <$> many1 letter <*> (spaces >> char '=' >> spaces >> int)
+
+-- Credit Aadit M Shah (https://stackoverflow.com/questions/24106314/parser-for-quoted-string-using-parsec)
+escape :: P.Parser String
+escape = do
+    d <- char '\\'
+    c <- oneOf "\\\"0nrvtbf" -- all the characters which can be escaped
+    return [d, c]
+
+nonEscape :: P.Parser Char
+nonEscape = noneOf "\\\"\0\n\r\v\t\b\f"
+
+character :: P.Parser String
+character = fmap return nonEscape P.<|> escape
+
+parseString :: P.Parser String
+parseString = do
+    char '"'
+    strings <- P.many character
+    char '"'
+    return $ concat strings
+--
+
+assignIntParser :: P.Parser Statement
+assignIntParser = AssignInt <$> (Variable Int <$> many1 letter) <*> (spaces >> char '=' >> spaces >> int)
+
+-- assignIntParser = AssignInt <$> (VarType <$> ConstCharP <*> many1 letter) <*> (spaces >> char '=' >> spaces >> int)
+
+assignStrParser :: P.Parser Statement
+assignStrParser = AssignStr <$> (Variable ConstCharP <$> many1 letter) <* (spaces >> char '=') <*> (spaces >> parseString)
 
 callParser :: P.Parser Statement
 callParser = Call <$> many1 letter <*> multiParamParser
 
 statementParser :: P.Parser Statement
-statementParser = P.try assignParser P.<|> P.try callParser
+statementParser = P.try assignIntParser P.<|> P.try assignStrParser P.<|> P.try callParser
 
 multiStatementParser :: P.Parser [Statement]
 multiStatementParser = P.spaces >> P.many (statementParser <* P.spaces)
 
 paramParser :: P.Parser Param
-paramParser = ((IntParam <$> int) P.<|> (StringParam <$> many1 letter)) <* spaces
+paramParser = (IntParam <$> int) <* spaces
 
 multiParamParser :: P.Parser [Param]
 multiParamParser = spaces >> char '(' >> P.many (spaces >> paramParser) <* spaces <* char ')'
@@ -86,21 +116,28 @@ extractVariablesStatements :: [Statement] -> [Var]
 extractVariablesStatements = concatMap extractVariablesStatement
 
 extractVariablesStatement :: Statement -> [Var]
-extractVariablesStatement (Assign var val) = [var]
+extractVariablesStatement (AssignInt var s) = [var]
+extractVariablesStatement (AssignStr var s) = [var]
 extractVariablesStatement (Call s ps) = []
 
 --
 --- Codegen
 --
 codeGenerator :: Code -> String
-codeGenerator code = boilerplateHead ++ varDeclsGenerator vars ++ concatMap procedureGenerator code ++ boilerplateTail
+codeGenerator code = boilerplateInclude ++ varDeclsGenerator vars ++ concatMap procedureGenerator code ++ boilerplateMain
   where vars = toList (fromList (concatMap extractVariablesProc code))
 
-boilerplateHead :: String
-boilerplateHead = "void size(int, int);\n" ++ "void settings();\n" ++ "void begin();\n" ++ "void draw(float dt);\n"
+boilerplateInclude :: String
+boilerplateInclude = "#define OLIVEC_IMPLEMENTATION\n#include \"olive.c\"\nOlivec_Canvas oc;\n"
 
-boilerplateTail :: String
-boilerplateTail = "#include \"gfxcore.c\"\n"
+boilerplateMain :: String
+boilerplateMain =  "int main(void) {\n" ++ boilerplateOlivec ++ "" ++ boilerplateOlivecSave ++ "\treturn 0;\n }"
+
+boilerplateOlivec :: String
+boilerplateOlivec = "\tsettings();\n" ++ "\toc = olivc_canvas(pixels, width, height, width);\n"
+
+boilerplateOlivecSave :: String
+boilerplateOlivecSave = "\tif (!stbi_write_png(outFile, width, height, 4, pixels, sizeof(uint32_t)*width)) { return 1; }\n"
 
 procedureGenerator :: Procedure -> String
 procedureGenerator (Section s p stmts) = "void " ++ s ++ "(" ++ paramsGenerator p ++ ")" ++ "{\n" ++ statementsGenerator stmts ++ "}\n"
@@ -111,15 +148,15 @@ paramsGenerator [p] = paramGenerator p
 paramsGenerator (p:ps) = paramGenerator p ++ "," ++ paramsGenerator ps
 
 paramGenerator :: Param -> String
-paramGenerator (StringParam i) = "int " ++ i
-paramGenerator (IntParam _) = undefined
+paramGenerator (IntParam n) = "int " ++ show n
 
 statementsGenerator :: [Statement] -> String
 statementsGenerator = concatMap statementGenerator
 
 statementGenerator :: Statement -> String
-statementGenerator (Assign v a) = "\t" ++ v ++ " = " ++ show a ++ ";\n"
-statementGenerator (Call s ps) = "\t" ++ s ++ "(" ++ argsGenerator ps ++ ");\n"
+statementGenerator (AssignInt (Variable t v) i) = "\t" ++ v ++ " = " ++ show i ++ ";\n"
+statementGenerator (AssignStr (Variable t v) a) = "\t" ++ v ++ " = " ++ show a ++ ";\n"
+statementGenerator (Call s ps) = "\tolivec_" ++ s ++ "(oc," ++ argsGenerator ps ++ ");\n"
 
 argsGenerator :: [Param] -> String
 argsGenerator [] = ""
@@ -128,13 +165,13 @@ argsGenerator (p:ps) = argGenerator p ++ "," ++ argsGenerator ps
 
 argGenerator :: Param -> String
 argGenerator (IntParam i) = show i
-argGenerator (StringParam s) = s
 
 varDeclsGenerator :: [Var] -> String
 varDeclsGenerator = concatMap varDeclGenerator
 
 varDeclGenerator :: Var -> String
-varDeclGenerator v = "int " ++ v ++ ";\n"
+varDeclGenerator (Variable Int v) = "int " ++ v ++ ";\n"
+varDeclGenerator (Variable ConstCharP v) = "const char* " ++ v ++ ";\n"
 
 --
 --- Arg parsing

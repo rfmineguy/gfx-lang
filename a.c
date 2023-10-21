@@ -1,23 +1,21 @@
-void size(int, int);
-void settings();
-void begin();
-void draw(float dt);
-int angle;
-int someVar;
-int x;
-int y;
+#define OLIVEC_IMPLEMENTATION
+#include "olive.c"
+Olivec_Canvas oc;
+const char* outFile;
+int height;
+int width;
 void settings(){
-	size(600,600);
-	framerate(30);
+	outFile = "image.png";
+	width = 600;
+	height = 600;
 }
-void begin(){
-	x = 4;
-	y = 6;
-	angle = 0;
+void run(){
+	olivec_fill(oc,42,53,255,43);
+	olivec_circle(oc,4,5,180,4281139388);
 }
-void draw(int dt){
-	angle = 3;
-	someVar = 4;
-	circle(x,y,10);
-}
-#include "gfxcore.c"
+int main(void) {
+	settings();
+	oc = olivc_canvas(pixels, width, height, width);
+	if (!stbi_write_png(outFile, width, height, 4, pixels, sizeof(uint32_t)*width)) { return 1; }
+	return 0;
+ }
