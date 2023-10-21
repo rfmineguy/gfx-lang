@@ -1,0 +1,14 @@
+settings () {
+  size(600 600)
+  framerate(30)
+}
+begin () {
+  x = 4
+  y = 6
+  angle = 0
+}
+draw (dt) {
+  angle = 3
+  someVar = 4
+  circle(x y 10)
+}
