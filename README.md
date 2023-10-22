@@ -23,6 +23,8 @@ $ gcc a.c -o a
 $ ./a
 ```
 
+NOTE: Without the Dependencies "a.c" will not be able to compile
+
 ## Examples
 ```
 settings () {
@@ -38,6 +40,7 @@ run () {
   line(20 40 400 300 0xFF532156)
 }
 ```
+![Example](test/image.png)
 
 ## Explaination
 - settings () is a required function where you specify all of the varaibles you will use
