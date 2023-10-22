@@ -46,6 +46,6 @@ run () {
         - width   -> Specifies the width of the output image
         - height  -> Specifies the height of the output image
 - run () is another required function you put all the code that draws stuff
-    - The functions callable in here are the same as those present in the normal OliveC library
+    - The functions callable in here are the same as those present in the normal OliveC library which can be found here [OliveC](https://github.com/tsoding/olive.c/tree/master)
 
 
