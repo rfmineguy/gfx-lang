@@ -4,4 +4,3 @@ test/stb_image_write.h
 test/olive.c
 test/a.out
 test/a.c
-test/image.png
